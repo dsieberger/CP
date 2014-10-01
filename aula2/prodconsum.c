@@ -63,9 +63,9 @@ void *producer(void *param) {
 
 	while (1) {
 	unsigned int seed = time(NULL);
-	int randT = rand_r(&seed) % 10;
+	int randT = rand_r(&seed) % 1000;
 	/* sleep for a random period of time */
-	sleep(randT);
+	usleep(randT);
 	/* generate a random number */
 	int item = rand() % 10;
 	
@@ -87,15 +87,15 @@ void *consumer(void *param) {
 	while (1) {
 		unsigned int seed = time(NULL);
 		/* sleep for a random period of time */
-		int randT = rand_r(&seed) % 10;
+		int randT = rand_r(&seed) % 1000;
 		/* sleep for a random period of time */
-		sleep(randT);
+		usleep(randT);
 
 		sem_wait (&used);
 		pthread_mutex_lock(&mVar);
 
 		if (remove_item(&rand_item) < 0)
-			printf("Cannot consume from buffer"); // report error condition
+			printf("Cannot consume from buffer\n"); // report error condition
 		else printf("consumer consumed %d\n", rand_item);
 		
 		pthread_mutex_unlock(&mVar); 
