@@ -15,17 +15,19 @@ pthread_t id;
 buffer_item buffer[BUFFER_SIZE];
 
 sem_t used;
-sem_t free;
+sem_t empty;
 
 int counter;
-int seed;
+
+void *producer(void *param);
+void *consumer(void *param);
 
 int main(int argc, char*argv[]) {
 
 /*Inicialização*/
 sem_init (&used, 0, 0);
-seed = 69;
-sem_init (&free, 0, BUFFER_SIZE);
+
+sem_init (&empty, 0, BUFFER_SIZE);
 counter = 0;
 pthread_attr_init(&attr);
 
@@ -39,14 +41,18 @@ sleepTime = atoi(argv[1]);
 producersN = atoi(argv[2]);
 consumersN = atoi(argv[3]);
 
-
-for (int i = 0; i < producersN; i++ ){
-		pthread_create(&id, &attr, &producer, NULL);
+int i = 0;
+while ( i < producersN){
+		pthread_create(&id, &attr, producer, NULL);
+		i++;
 }
 
-for (int i = 0; i < consumersN; i++ ){
-		pthread_create(&id, &attr, &consumer, NULL);
+i = 0;
+while ( i < consumersN){
+		pthread_create(&id, &attr, consumer, NULL);
+		i++;
 	} 
+
 sleep(sleepTime);
 exit(0);
 
@@ -56,19 +62,20 @@ void *producer(void *param) {
 	buffer_item rand_item;
 
 	while (1) {
-
-	int randT = rand_r(&seed);
+	unsigned int seed = time(NULL);
+	int randT = rand_r(&seed) % 10;
 	/* sleep for a random period of time */
 	sleep(randT);
 	/* generate a random number */
-	int item = rand();
+	int item = rand() % 10;
 	
-	sem_wait(&free);
+	sem_wait(&empty);
 	pthread_mutex_lock(&mVar);	
 	
 	if (insert_item(item) < 0)
-		printf("Cannot add to buffer"); // report error condition
-	}
+		printf("Cannot add to buffer\n"); // report error condition
+	else printf("Produced %d\n", item);
+	} 
 
 	pthread_mutex_unlock(&mVar);
 	sem_post(&used);
@@ -78,9 +85,9 @@ void *consumer(void *param) {
 	buffer_item rand_item;
 	
 	while (1) {
-		
+		unsigned int seed = time(NULL);
 		/* sleep for a random period of time */
-		int randT = rand_r(&seed);
+		int randT = rand_r(&seed) % 10;
 		/* sleep for a random period of time */
 		sleep(randT);
 
@@ -89,10 +96,10 @@ void *consumer(void *param) {
 
 		if (remove_item(&rand_item) < 0)
 			printf("Cannot consume from buffer"); // report error condition
-		else printf("consumer consumed %d\n", item);
+		else printf("consumer consumed %d\n", rand_item);
 		
 		pthread_mutex_unlock(&mVar); 
-		sem_post(&free);
+		sem_post(&empty);
 	}
 }
 
