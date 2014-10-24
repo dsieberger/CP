@@ -9,7 +9,9 @@ import java.util.concurrent.locks.ReentrantLock;
 public class LinkedList<V> implements List<V> {
 
 	public class Node {
+
 		final private Lock lock = new ReentrantLock();		//modified
+
 		final private V m_value;
 		private Node m_next;
 
