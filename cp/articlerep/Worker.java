@@ -16,7 +16,7 @@ public class Worker {
 			.getProperty("cp.articlerep.validate"));
 
 	private int dictSize;
-	private String dictFile;
+	private String dictFile;			
 	private int put;
 	private int del;
 	private int get;

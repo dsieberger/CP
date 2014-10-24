@@ -1,11 +1,15 @@
 package cp.articlerep.ds;
 
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 /**
  * @author Ricardo Dias
  */
 public class LinkedList<V> implements List<V> {
 
 	public class Node {
+		final private Lock lock = new ReentrantLock();		//modified
 		final private V m_value;
 		private Node m_next;
 
@@ -29,6 +33,16 @@ public class LinkedList<V> implements List<V> {
 		public Node getNext() {
 			return m_next;
 		}
+		
+		//modified
+		public void lock() {
+			lock.lock();
+		}
+		
+		//modified
+		public void unlock() {
+			lock.unlock();
+		}
 	}
 
 	private Node m_head;
@@ -37,10 +51,24 @@ public class LinkedList<V> implements List<V> {
 		m_head = null;
 	}
 
+	//consistent
+	//no lock on both nodes because one of them is a local variable (only accessed by one thread)
 	public void add(V value) {
-		m_head = new Node(value, m_head);
+		
+		boolean isNull = (m_head == null);
+		
+		if(!isNull)
+			m_head.lock();
+		try {
+			m_head = new Node(value, m_head);
+		} finally {
+			if(!isNull)
+				m_head.unlock();
+		}
 	}
 	
+	//consistent
+	//"hand-over-hand" lock
 	public void add(int pos, V value) {
 		
 		if (pos == 0) {
@@ -48,63 +76,134 @@ public class LinkedList<V> implements List<V> {
 			return;
 		}
 		
-		Node n = null;
-		Node f = null;
-		
-		for (n=m_head; n != null && pos > 0; n=n.m_next) {
-			f = n;
+		Node old = null;
+		Node prev = null;
+		Node next = null;
+
+		for (next = m_head; next != null && pos > 0; next = next.m_next) {
+			
+			if(old != null)
+				old.unlock();
+			
+			if(prev != null)
+				old = prev;
+			
+			next.lock();
+			prev = next;
 			pos--;
 		}
 		
-		Node newNode = new Node(value, f.m_next);
-		f.m_next = newNode;
+		Node newNode = new Node(value, prev.m_next);
+		prev.m_next = newNode;
+		
+		prev.unlock();
+		newNode.m_next.unlock();
 	}
 
+	//consistent
 	public V remove(int pos) {
+		
 		V res = null;
 		
-		Node f = null;
-		Node n = null;
+		Node old = null;
+		Node prev = null;
+		Node next = null;
 		
-		for (n=m_head; n != null && pos > 0; n=n.m_next) {
-			f = n;
+		for (next = m_head; next != null && pos > 0; next = next.m_next) {
+			
+			if(old != null)
+				old.unlock();
+			
+			if(prev != null)
+				old = prev;
+			
+			next.lock();
+			prev = next;
 			pos--;
 		}
 		
-		if (n != null) {
-			res = n.m_value;
-			if (f != null) {
-			    f.m_next = n.m_next;
+		if (next != null) {
+			res = next.m_value;
+			if (prev != null) {
+			    prev.m_next = next.m_next;
+				old.unlock();
 			}
 			else {
-			    m_head = n.m_next;
+			    m_head = next.m_next;
 			}
+	
+			prev.unlock();
 		}
 
 		return res;
 	}
 
+	//consistent
 	public V get(int pos) {
+		
 		V res = null;
-		Node n = null;
-		for (n=m_head; n != null && pos > 0; n=n.m_next) {
+		
+		Node old = null;
+		Node prev = null;
+		Node next = null;
+		
+		for (next = m_head; next != null && pos > 0; next = next.m_next) {
+			
+			if(old != null)
+				old.unlock();
+			
+			if(prev != null)
+				old = prev;
+			
+			next.lock();
+			prev = next;
 			pos--;
 		}
-		if (n != null) {
-			res = n.m_value;
+		
+		if (next != null) {
+			res = next.m_value;
 		}
+		
+		old.unlock();
+		prev.unlock();
+		
 		return res;
 	}
 
+	//consistent
 	public int size() {
-		int res=0;
-		for (Node n=m_head; n != null; n=n.m_next) {
+		
+		int res = 0;
+		
+		Node old = null;
+		Node prev = null;
+		Node next = null;
+		
+		for (next = m_head; next != null; next = next.m_next) {
+			
+			if(old != null)
+				old.unlock();
+			
+			if(prev != null)
+				old = prev;
+			
+			next.lock();
+			prev = next;
 			res++;
 		}
+		
+		old.unlock();
+		prev.unlock();
+		
 		return res;
 	}
 
+	//consistent
 	public Iterator<V> iterator() {
+		
+		if(m_head != null)
+			m_head.lock();
+		
 		return new Iterator<V>() {
 			
 			private Node curr = m_head;
@@ -112,14 +211,23 @@ public class LinkedList<V> implements List<V> {
 			public boolean hasNext() {
 				return curr != null;
 			}
+			
 			public V next() {
+				
+				Node temp = curr;
+				curr.m_next.lock();
 				V ret = curr.m_value;
+				
+				if(hasNext())
+					temp.unlock();
+				
 				curr = curr.m_next;
 				return ret;
 			}
 		};
 	}
 	
+	//consistent
 	public String toString() {
 		StringBuffer sb = new StringBuffer("[");
 		
