@@ -63,7 +63,28 @@ public class Repository {
 		if (a == null)
 			return;
 		
-		byArticleId.remove(id);
+		Iterator<String> authors = a.getAuthors().iterator();
+		while (authors.hasNext()) {
+			String name = authors.next();
+
+			List<Article> ll = byAuthor.get(name);
+			if (ll != null) {
+				int pos = 0;
+				Iterator<Article> it = ll.iterator();
+				while (it.hasNext()) {
+					Article toRem = it.next();
+					if (toRem == a) {
+						break;
+					}
+					pos++;
+				}
+				ll.remove(pos);
+				it = ll.iterator(); 
+				if (!it.hasNext()) { // checks if the list is empty
+					byAuthor.remove(name);
+				}
+			}
+		}
 
 		Iterator<String> keywords = a.getKeywords().iterator();
 		while (keywords.hasNext()) {
@@ -87,29 +108,9 @@ public class Repository {
 				}
 			}
 		}
+		
+		byArticleId.remove(id);
 
-		Iterator<String> authors = a.getAuthors().iterator();
-		while (authors.hasNext()) {
-			String name = authors.next();
-
-			List<Article> ll = byAuthor.get(name);
-			if (ll != null) {
-				int pos = 0;
-				Iterator<Article> it = ll.iterator();
-				while (it.hasNext()) {
-					Article toRem = it.next();
-					if (toRem == a) {
-						break;
-					}
-					pos++;
-				}
-				ll.remove(pos);
-				it = ll.iterator(); 
-				if (!it.hasNext()) { // checks if the list is empty
-					byAuthor.remove(name);
-				}
-			}
-		}
 	}
 
 	public List<Article> findArticleByAuthor(List<String> authors) {

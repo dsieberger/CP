@@ -57,16 +57,10 @@ public class LinkedList<V> implements List<V> {
 	//no lock on both nodes because one of them is a local variable (only accessed by one thread)
 	public void add(V value) {
 		
-		boolean isNull = (m_head == null);
-		
-		if(!isNull)
-			m_head.lock();
-		try {
-			m_head = new Node(value, m_head);
-		} finally {
-			if(!isNull)
-				m_head.unlock();
-		}
+		if(m_head != null)
+			synchronized(this) {
+				m_head = new Node(value, m_head);
+			}
 	}
 	
 	//consistent
@@ -217,7 +211,8 @@ public class LinkedList<V> implements List<V> {
 			public V next() {
 				
 				Node temp = curr;
-				curr.m_next.lock();
+				if(curr.m_next != null)
+					curr.m_next.lock();
 				V ret = curr.m_value;
 				
 				if(hasNext())
