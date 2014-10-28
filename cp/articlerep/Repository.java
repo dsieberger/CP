@@ -161,7 +161,7 @@ public class Repository {
 		
 		HashSet<Integer> articleIds = new HashSet<Integer>();
 		int articleCount = 0;
-		
+
 		Iterator<Article> aIt = byArticleId.values();
 		while(aIt.hasNext()) {
 			Article a = aIt.next();
@@ -190,7 +190,7 @@ public class Repository {
 			}
 		}
 		
-		return articleCount == articleIds.size();
+		return articleCount == articleIds.size(); // numero de artigos correcto
 	}
 	
 	private boolean searchAuthorArticle(Article a, String author) {
