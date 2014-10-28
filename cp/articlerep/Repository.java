@@ -174,6 +174,7 @@ public class Repository {
 			while(authIt.hasNext()) {
 				String name = authIt.next();
 				if (!searchAuthorArticle(a, name)) {
+					System.out.println("No article author.");
 					return false;
 				}
 			}
@@ -183,6 +184,7 @@ public class Repository {
 			while(keyIt.hasNext()) {
 				String keyword = keyIt.next();
 				if (!searchKeywordArticle(a, keyword)) {
+					System.out.println("No article keyword.");
 					return false;
 				}
 			}
