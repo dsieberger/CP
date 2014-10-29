@@ -40,7 +40,7 @@ public class MainRep {
 		run.startTest();
 
 		long start_time = System.currentTimeMillis();
-
+        // Doesn't validate the last seconds if the running time isn't a multiple of 5
 		try {
 			if (!DO_VALIDATION) {
 				Thread.sleep(time * 1000);

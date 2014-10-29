@@ -37,3 +37,10 @@ As duas primeiras estruturas mencionadas têm como valor uma **lista ligada** qu
 * No final da remoção de **b**, **a** deve apontar para **c**.
 * No final da inserção de **x** na posição de **b**, **a** aponta para **x**, **x** aponta para **b**, **b** aponta para **c**.
 * Durante a leitura da lista, nenhum nó (que não o último) deve referenciar **null**.
+
+
+
+##Invariantes
+
+* Não pode haver 2 Artigos com o mesmo Id???
+* Artigos que já foram removidos existirem ainda em byAuthors ou byKeywords
