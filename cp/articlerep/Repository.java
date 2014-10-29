@@ -166,9 +166,6 @@ public class Repository {
 		while(aIt.hasNext()) {
 			Article a = aIt.next();
 
-            // Check if there are duplicate articles (será que é preciso dado que estamos a utilizar hashtables?)
-            // if (articleIds.contains(a)) return false;
-
 			articleIds.add(a.getId());
 			articleCount++;
 			
@@ -217,7 +214,7 @@ public class Repository {
             }
 		}
 		
-		return articleCount == articleIds.size(); // numero de artigos correcto
+		return articleCount == articleIds.size(); // check for duplicates (HashSet removes duplicates)
 	}
 	
 	private boolean searchAuthorArticle(Article a, String author) {

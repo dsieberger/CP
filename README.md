@@ -2,7 +2,7 @@
 
 O programa contém uma arquitectura de dados especificada por **um repositório** que contém **3 *Hashmaps***:
 
-1. Os artigos de um autor => *Map(String, List&lt;Article&gt;)*
+1. Os artigos de um *autor* => *Map(String, List&lt;Article&gt;)*
 2. As *keywords* de um artigo => *Map(String, List&lt;Article&gt;)*
 3. O *ID* de um artigo => *Map(Integer, Article)*
 
@@ -42,5 +42,7 @@ As duas primeiras estruturas mencionadas têm como valor uma **lista ligada** qu
 
 ##Invariantes
 
-* Não pode haver 2 Artigos com o mesmo Id???
-* Artigos que já foram removidos existirem ainda em byAuthors ou byKeywords
+* Não pode haver 2 Artigos com o mesmo Id
+* Artigos que já foram removidos não devem existir em byAuthors ou byKeywords
+* Todos os artigos que estão presentes em byAuthores e byKeywords têm de estar em contidos em byId
+* O número de autores
