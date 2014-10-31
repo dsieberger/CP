@@ -32,7 +32,7 @@ public class Repository {
 		while (authors.hasNext()) {
 			String name = authors.next();
 
-			List<Article> ll = byAuthor.get(name);  // lista com poucos elementos
+			List<Article> ll = byAuthor.get(name);
 			if (ll == null) {
 				ll = new LinkedList<Article>();
 				byAuthor.put(name, ll);
@@ -161,11 +161,11 @@ public class Repository {
 		
 		HashSet<Integer> articleIds = new HashSet<Integer>();
 		int articleCount = 0;
-
+		
 		Iterator<Article> aIt = byArticleId.values();
 		while(aIt.hasNext()) {
 			Article a = aIt.next();
-
+			
 			articleIds.add(a.getId());
 			articleCount++;
 			
@@ -188,33 +188,9 @@ public class Repository {
 					return false;
 				}
 			}
-
-            // Check if there aren't any phantom articles left in the keywords
-            Iterator<List<Article>> KeyVals = byKeyword.values();
-            while (KeyVals.hasNext()){
-                List<Article> artList = KeyVals.next();
-                for (int i = 0; i < artList.size(); i++){
-                    if (!articleIds.contains(artList.get(i))){
-                        System.out.println("Phantom article detected");
-                        return false;
-                    }
-                }
-            }
-
-            // Check if there aren't any phantom articles left in the authors
-            Iterator<List<Article>> authVals = byAuthor.values();
-            while (authVals.hasNext()){
-                List<Article> artList = authVals.next();
-                for (int i = 0; i < artList.size(); i++){
-                    if (!articleIds.contains(artList.get(i))){
-                        System.out.println("Phantom article detected");
-                        return false;
-                    }
-                }
-            }
 		}
 		
-		return articleCount == articleIds.size(); // check for duplicates (HashSet removes duplicates)
+		return articleCount == articleIds.size();
 	}
 	
 	private boolean searchAuthorArticle(Article a, String author) {

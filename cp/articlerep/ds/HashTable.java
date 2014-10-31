@@ -1,10 +1,16 @@
 package cp.articlerep.ds;
 
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 /**
  * @author Ricardo Dias
  */
 public class HashTable<K extends Comparable<K>, V> implements Map<K, V> {
 
+        final ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
+        private final Lock r = rwl.readLock();
+        private final Lock w = rwl.writeLock();
 	private static class Node {
 		public Object key;
 		public Object value;
@@ -34,7 +40,9 @@ public class HashTable<K extends Comparable<K>, V> implements Map<K, V> {
 	@SuppressWarnings("unchecked")
 	@Override
 	public V put(K key, V value) {
-		int pos = this.calcTablePos(key);
+            w.lock();
+            try {
+                int pos = this.calcTablePos(key);
 		Node n = this.table[pos];
 
 		while (n != null && !n.key.equals(key)) {
@@ -51,12 +59,18 @@ public class HashTable<K extends Comparable<K>, V> implements Map<K, V> {
 		this.table[pos] = nn;
 
 		return null;
+            } finally {
+                w.unlock();
+            }
+		
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public V remove(K key) {
-		int pos = this.calcTablePos(key);
+            w.unlock();
+            try{
+                int pos = this.calcTablePos(key);
 		Node p = this.table[pos];
 		if (p == null) {
 			return null;
@@ -80,6 +94,10 @@ public class HashTable<K extends Comparable<K>, V> implements Map<K, V> {
 		p.next = n.next;
 
 		return (V) n.value;
+            } finally {
+               w.unlock(); 
+            }
+		
 	}
 
 	@SuppressWarnings("unchecked")

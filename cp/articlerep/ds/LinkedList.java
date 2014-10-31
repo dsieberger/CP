@@ -316,26 +316,16 @@ public class LinkedList<V> implements List<V> {
 	{
 		startHOH();
 		return new Iterator<V>() {
-			Node a = m_head;
-            Node b = m_head.m_next;
+			
+			private Node curr = m_head.m_next;
 			
 			public boolean hasNext() {
-                //Temos de ter o node locked para garantir que que existe o next ou não?
-                if (b != null){
-                    if (a.m_next == b){
-                        return true;
-                    } else return false;
-                }
+				return curr != null;
 			}
 			public V next() {
-                if (a.m_next == b){
-                    a.unlock();
-                    a = b;
-                }
-                V ret = b.m_value;
-                b.m_next.lock();
-                b = b.m_next;
-                // onde é que fazemos o ultimo unlock?
+				
+				V ret = curr.m_value;
+				curr = curr.m_next;
 				return ret;
 			}
 		};
