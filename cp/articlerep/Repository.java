@@ -11,212 +11,285 @@ import cp.articlerep.ds.HashTable;
 /**
  * @author Ricardo Dias
  */
-public class Repository {
+public class Repository
+{
 
-	private Map<String, List<Article>> byAuthor;
-	private Map<String, List<Article>> byKeyword;
-	private Map<Integer, Article> byArticleId;
+    private Map<String, List<Article>> byAuthor;
+    private Map<String, List<Article>> byKeyword;
+    private Map<Integer, Article> byArticleId;
 
-	public Repository(int nkeys) {
-		this.byAuthor = new HashTable<String, List<Article>>(nkeys*2);
-		this.byKeyword = new HashTable<String, List<Article>>(nkeys*2);
-		this.byArticleId = new HashTable<Integer, Article>(nkeys*2);
+    public Repository(int nkeys)
+    {
+	this.byAuthor = new HashTable<String, List<Article>>(nkeys * 2);
+	this.byKeyword = new HashTable<String, List<Article>>(nkeys * 2);
+	this.byArticleId = new HashTable<Integer, Article>(nkeys * 2);
+    }
+
+    public boolean insertArticle(Article a)
+    {
+
+	if (byArticleId.contains(a.getId()))
+	    return false;
+
+	Iterator<String> authors = a.getAuthors().iterator();
+	while (authors.hasNext())
+	{
+	    String name = authors.next();
+
+	    List<Article> ll = byAuthor.get(name);
+	    if (ll == null)
+	    {
+		ll = new LinkedList<Article>();
+		byAuthor.put(name, ll);
+	    }
+	    ((LinkedList<Article>) ll).writeLock.lock();
+	    ll.add(a);
+	    ((LinkedList<Article>) ll).writeLock.unlock();
 	}
 
-	public boolean insertArticle(Article a) {
+	Iterator<String> keywords = a.getKeywords().iterator();
+	while (keywords.hasNext())
+	{
+	    String keyword = keywords.next();
 
-		if (byArticleId.contains(a.getId()))
-			return false;
-
-		Iterator<String> authors = a.getAuthors().iterator();
-		while (authors.hasNext()) {
-			String name = authors.next();
-
-			List<Article> ll = byAuthor.get(name);
-			if (ll == null) {
-				ll = new LinkedList<Article>();
-				byAuthor.put(name, ll);
-			}
-			ll.add(a);
-		}
-
-		Iterator<String> keywords = a.getKeywords().iterator();
-		while (keywords.hasNext()) {
-			String keyword = keywords.next();
-
-			List<Article> ll = byKeyword.get(keyword);
-			if (ll == null) {
-				ll = new LinkedList<Article>();
-				byKeyword.put(keyword, ll);
-			} 
-			ll.add(a);
-		}
-
-		byArticleId.put(a.getId(), a);
-
-		return true;
+	    List<Article> ll = byKeyword.get(keyword);
+	    if (ll == null)
+	    {
+		ll = new LinkedList<Article>();
+		byKeyword.put(keyword, ll);
+	    }
+	    ((LinkedList<Article>) ll).writeLock.lock();
+	    ll.add(a);
+	    ((LinkedList<Article>) ll).writeLock.unlock();
 	}
 
-	public void removeArticle(int id) {
-		Article a = byArticleId.get(id);
+	byArticleId.put(a.getId(), a);
 
-		if (a == null)
-			return;
+	return true;
+    }
+
+    public void removeArticle(int id)
+    {
+	Article a = byArticleId.get(id);
+
+	if (a == null)
+	    return;
+
+	byArticleId.remove(id);
+
+	Iterator<String> keywords = a.getKeywords().iterator();
+	while (keywords.hasNext())
+	{
+	    String keyword = keywords.next();
+
+	    List<Article> ll = byKeyword.get(keyword);
+	    if (ll != null)
+	    {
+		int pos = 0;
+		((LinkedList<Article>) ll).writeLock.lock();
+		Iterator<Article> it = ll.iterator();
+		while (it.hasNext())
+		{
+		    Article toRem = it.next();
+		    if (toRem == a)
+		    {
+			break;
+		    }
+		    pos++;
+		}
+		ll.remove(pos);
+		((LinkedList<Article>) ll).writeLock.unlock();
+		((LinkedList<Article>) ll).readLock.lock();
+		it = ll.iterator();
+		if (!it.hasNext())
+		{ // checks if the list is empty
+		    byKeyword.remove(keyword);
+		}
+		((LinkedList<Article>) ll).readLock.unlock();
+	    }
+	}
+
+	Iterator<String> authors = a.getAuthors().iterator();
+	while (authors.hasNext())
+	{
+	    String name = authors.next();
+
+	    List<Article> ll = byAuthor.get(name);
+	    if (ll != null)
+	    {
+		int pos = 0;
+		Iterator<Article> it = ll.iterator();
+		((LinkedList<Article>) ll).writeLock.lock();
+		while (it.hasNext())
+		{
+		    Article toRem = it.next();
+		    if (toRem == a)
+		    {
+			break;
+		    }
+		    pos++;
+		}
+		ll.remove(pos);
+		((LinkedList<Article>) ll).writeLock.unlock();
+		((LinkedList<Article>) ll).readLock.lock();
+		it = ll.iterator();
+		if (!it.hasNext())
+		{ // checks if the list is empty
+		    byAuthor.remove(name);
+		}
+		((LinkedList<Article>) ll).readLock.unlock();
+	    }
+	}
+    }
+
+    public List<Article> findArticleByAuthor(List<String> authors)
+    {
+	List<Article> res = new LinkedList<Article>();
+
+	Iterator<String> it = authors.iterator();
+	while (it.hasNext())
+	{
+	    String name = it.next();
+	    List<Article> as = byAuthor.get(name);
+	    if (as != null)
+	    {
+		Iterator<Article> ait = as.iterator();
 		
-		Iterator<String> authors = a.getAuthors().iterator();
-		while (authors.hasNext()) {
-			String name = authors.next();
-
-			List<Article> ll = byAuthor.get(name);
-			if (ll != null) {
-				int pos = 0;
-				Iterator<Article> it = ll.iterator();
-				while (it.hasNext()) {
-					Article toRem = it.next();
-					if (toRem == a) {
-						break;
-					}
-					pos++;
-				}
-				ll.remove(pos);
-				it = ll.iterator(); 
-				if (!it.hasNext()) { // checks if the list is empty
-					byAuthor.remove(name);
-				}
-			}
+		// reading from hashtable. Must... Lock... List!
+		((LinkedList<Article>) as).readLock.lock();
+		try
+		{
+		    while (ait.hasNext())
+		    {
+			Article a = ait.next();
+			res.add(a);
+		    }
 		}
+		finally { ((LinkedList<Article>) as).readLock.unlock(); }
+	    }
+	}
 
-		Iterator<String> keywords = a.getKeywords().iterator();
-		while (keywords.hasNext()) {
-			String keyword = keywords.next();
+	return res;
+    }
 
-			List<Article> ll = byKeyword.get(keyword);
-			if (ll != null) {
-				int pos = 0;
-				Iterator<Article> it = ll.iterator();
-				while (it.hasNext()) {
-					Article toRem = it.next();
-					if (toRem == a) {
-						break;
-					}
-					pos++;
-				}
-				ll.remove(pos);
-				it = ll.iterator();
-				if (!it.hasNext()) { // checks if the list is empty
-					byKeyword.remove(keyword);
-				}
-			}
+    public List<Article> findArticleByKeyword(List<String> keywords)
+    {
+	List<Article> res = new LinkedList<Article>();
+
+	Iterator<String> it = keywords.iterator();
+	while (it.hasNext())
+	{
+	    String keyword = it.next();
+	    List<Article> as = byKeyword.get(keyword);
+	    
+	    if (as != null)
+	    {
+		// reading from hashtable. Must... Lock... List!
+		((LinkedList<Article>) as).readLock.lock();
+		try
+		{
+		    Iterator<Article> ait = as.iterator();
+		    while (ait.hasNext())
+		    {
+			Article a = ait.next();
+			res.add(a);
+		    }
 		}
-		
-		byArticleId.remove(id);
+		finally { ((LinkedList<Article>) as).readLock.unlock(); }
+	    }
 
 	}
 
-	public List<Article> findArticleByAuthor(List<String> authors) {
-		List<Article> res = new LinkedList<Article>();
+	return res;
+    }
 
-		Iterator<String> it = authors.iterator();
-		while (it.hasNext()) {
-			String name = it.next();
-			List<Article> as = byAuthor.get(name);
-			if (as != null) {
-				Iterator<Article> ait = as.iterator();
-				while (ait.hasNext()) {
-					Article a = ait.next();
-					res.add(a);
-				}
-			}
+    /**
+     * This method is supposed to be executed with no concurrent thread
+     * accessing the repository.
+     * 
+     */
+    public boolean validate()
+    {
+
+	HashSet<Integer> articleIds = new HashSet<Integer>();
+	int articleCount = 0;
+
+	Iterator<Article> aIt = byArticleId.values();
+	while (aIt.hasNext())
+	{
+	    Article a = aIt.next();
+
+	    articleIds.add(a.getId());
+	    articleCount++;
+
+	    // check the authors consistency
+	    Iterator<String> authIt = a.getAuthors().iterator();
+	    while (authIt.hasNext())
+	    {
+		String name = authIt.next();
+		if (!searchAuthorArticle(a, name))
+		{
+		    return false;
 		}
+	    }
 
-		return res;
+	    // check the keywords consistency
+	    Iterator<String> keyIt = a.getKeywords().iterator();
+	    while (keyIt.hasNext())
+	    {
+		String keyword = keyIt.next();
+		if (!searchKeywordArticle(a, keyword))
+		{
+		    return false;
+		}
+	    }
 	}
 
-	public List<Article> findArticleByKeyword(List<String> keywords) {
-		List<Article> res = new LinkedList<Article>();
+	return articleCount == articleIds.size();
+    }
 
-		Iterator<String> it = keywords.iterator();
-		while (it.hasNext()) {
-			String keyword = it.next();
-			List<Article> as = byKeyword.get(keyword);
-			if (as != null) {
-				Iterator<Article> ait = as.iterator();
-				while (ait.hasNext()) {
-					Article a = ait.next();
-					res.add(a);
-				}
-			}
+    private boolean searchAuthorArticle(Article a, String author)
+    {
+	List<Article> ll = byAuthor.get(author);
+	if (ll != null)
+	{
+	    Iterator<Article> it = ll.iterator();
+	    
+	    ((LinkedList<Article>) ll).readLock.lock();
+	    try
+	    {
+		while (it.hasNext())
+		{
+		    if (it.next() == a)
+		    {
+			return true;
+		    }
 		}
+	    } finally { ((LinkedList<Article>) ll).readLock.unlock(); }
+	}
+	return false;
+    }
 
-		return res;
-	}
-
-	
-	/**
-	 * This method is supposed to be executed with no concurrent thread
-	 * accessing the repository.
-	 * 
-	 */
-	public boolean validate() {
-		
-		HashSet<Integer> articleIds = new HashSet<Integer>();
-		int articleCount = 0;
-		
-		Iterator<Article> aIt = byArticleId.values();
-		while(aIt.hasNext()) {
-			Article a = aIt.next();
-			
-			articleIds.add(a.getId());
-			articleCount++;
-			
-			// check the authors consistency
-			Iterator<String> authIt = a.getAuthors().iterator();
-			while(authIt.hasNext()) {
-				String name = authIt.next();
-				if (!searchAuthorArticle(a, name)) {
-					System.out.println("No article author.");
-					return false;
-				}
-			}
-			
-			// check the keywords consistency
-			Iterator<String> keyIt = a.getKeywords().iterator();
-			while(keyIt.hasNext()) {
-				String keyword = keyIt.next();
-				if (!searchKeywordArticle(a, keyword)) {
-					System.out.println("No article keyword.");
-					return false;
-				}
-			}
+    private boolean searchKeywordArticle(Article a, String keyword)
+    {
+	List<Article> ll = byKeyword.get(keyword);
+	if (ll != null)
+	{
+	    Iterator<Article> it = ll.iterator();
+	    
+	    ((LinkedList<Article>) ll).readLock.lock();
+	    try
+	    {
+		while (it.hasNext())
+		{
+		    if (it.next() == a)
+		    {
+			return true;
+		    }
 		}
-		
-		return articleCount == articleIds.size();
+	    } finally { ((LinkedList<Article>) ll).readLock.unlock(); }
 	}
-	
-	private boolean searchAuthorArticle(Article a, String author) {
-		List<Article> ll = byAuthor.get(author);
-		if (ll != null) {
-			Iterator<Article> it = ll.iterator();
-			while (it.hasNext()) {
-				if (it.next() == a) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-
-	private boolean searchKeywordArticle(Article a, String keyword) {
-		List<Article> ll = byKeyword.get(keyword);
-		if (ll != null) {
-			Iterator<Article> it = ll.iterator();
-			while (it.hasNext()) {
-				if (it.next() == a) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
+	return false;
+    }
 
 }

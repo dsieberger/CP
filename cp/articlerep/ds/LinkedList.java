@@ -1,351 +1,207 @@
 package cp.articlerep.ds;
 
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * @author Ricardo Dias
  */
-public class LinkedList<V> implements List<V> {
+public class LinkedList<V> implements List<V>
+{
+    private final ReadWriteLock rwl;
+    public final Lock readLock;
+    public final Lock writeLock;
 
-	public class Node {
-		
-		final private ReentrantLock lock = new ReentrantLock();
-		final private V m_value;
-		private Node m_next;
+    public class Node
+    {
+	final private V m_value;
+	private Node m_next;
 
-		public Node(V value, Node next) {
-			m_value = value;
-			m_next = next;
-		}
-
-		public Node(V value) {
-			this(value, null);
-		}
-
-		public V getValue() {
-			return m_value;
-		}
-
-		public void setNext(Node next) {
-			m_next = next;
-		}
-
-		public Node getNext() {
-			return m_next;
-		}
-		
-		public void lock() {
-			lock.lock();
-		}
-		
-		public void unlock() {
-			lock.unlock();
-		}
-	}
-
-	private Node m_head;
-
-	public LinkedList() {
-		m_head = new Node(null);
-	}
-
-	//immutable head - always stays in the list so that you can lock only the head, instead of 'synchronized(list)'
-	public void startHOH() {
-		
-		// if list not empty:
-		// head -> elem1 -> ...
-		// [head] -> elem1 -> ...
-		// [head] -> [elem1] -> ...
-		
-		// else:
-		// head -> null
-		// [head] -> null 
-		m_head.lock();
-		assert m_head.lock.isHeldByCurrentThread();
-
-		if(m_head.m_next != null)
-		{
-			m_head.m_next.lock();
-			assert m_head.m_next.lock.isHeldByCurrentThread();
-		}
-	}
-
-	public void add(V value) {
-		
-		// if list not empty:
-		// 1) head -> elem1 -> ...
-		// 2) [head] -> [elem1] -> ...
-		// 3) [head] -> newNode -> [elem1] -> ...
-		// 4) head -> newNode -> [elem1] -> ...
-		// 5) head -> newNode -> elem1 -> ...
-		
-		// else:
-		// head -> null
-		// [head] -> null
-		// [head] -> elem1 -> null
-		// head -> elem1 -> null
-		
-		//steps 1 and 2
-		//lock list head and it's successor (if it exists)
-		startHOH();
-		
-		//assert that startHOH() method has locked correctly
-		//the list head and it's successor if it exists
-		if(m_head.m_next != null)
-			assert m_head.m_next.lock.isHeldByCurrentThread();
-		assert m_head.lock.isHeldByCurrentThread();
-		
-		//insert new node between the list head and the original
-		//list head successor (steps 2 and 3)
-		Node new_elem = new Node(value, m_head.m_next);
-		m_head.m_next = new_elem;
-		
-		//unlock the list head (step 4)
-		m_head.unlock();
-		if(new_elem.m_next != null)
-		{
-			//step 5 (if the list wasn't originally empty)
-			new_elem.m_next.unlock();
-			//verify that no locks are forgotten
-			assert !m_head.m_next.m_next.lock.isHeldByCurrentThread();
-		}
-		
-		//verify that no locks are forgotten
-		assert !m_head.lock.isHeldByCurrentThread() &&
-			   !m_head.m_next.lock.isHeldByCurrentThread();
-		
-	}
-	
-	//consistent
-	//"hand-over-hand" lock
-	public void add(int pos, V value) {
-		
-		if (pos == 0)
-		{
-			add(value);
-			assert m_head.m_next != null;
-			return;
-		}
-		
-		startHOH();
-		
-		Node a = m_head;
-		Node b = null;
-
-		for (b = m_head.m_next; b != null && a != null && pos > 0; pos--)
-		{	
-			assert a.lock.isHeldByCurrentThread() &&
-				   b.lock.isHeldByCurrentThread();
-			
-			if(a.m_next == b)
-			{
-				a.unlock();
-				a = b.m_next;
-				if(a != null)
-					a.lock();
-			}
-			else if(b.m_next == a)
-			{
-				b.unlock();
-				b = a.m_next;
-				if(b != null)
-					b.lock();
-			}
-		}
-		
-		if(a != null && a.m_next == b)
-		{
-			Node newNode = new Node(value, b);
-			a.m_next = newNode;
-			a.unlock();
-			if(b != null)
-				b.unlock();
-		}
-		else if(b != null && b.m_next == a)
-		{
-			Node newNode = new Node(value, a.m_next);
-			b.m_next = newNode;
-			b.unlock();
-			if(a != null)
-				a.unlock();
-		}
-	}
-	
-	public V remove(int pos)
+	public Node(V value, Node next)
 	{
-		startHOH();
-		
-		Node a = m_head;
-		Node b = null;
+	    m_value = value;
+	    m_next = next;
+	}
 
-		for (b = m_head.m_next; b != null && a != null && pos > 0; pos--)
-		{	
-			assert a.lock.isHeldByCurrentThread() &&
-				   b.lock.isHeldByCurrentThread();
-			
-			if(a.m_next == b)
-			{
-				a.unlock();
-				a = b.m_next;
-				if(a != null)
-					a.lock();
-			}
-			else if(b.m_next == a)
-			{
-				b.unlock();
-				b = a.m_next;
-				if(b != null)
-					b.lock();
-			}
-		}
-		
-		if(a != null && a.m_next == b)
-		{
-			Node removed = b;
-			if(a.m_next != null)
-				a.m_next = a.m_next.m_next;
-			a.unlock();
-			if(removed != null)
-			{
-				removed.unlock();
-				return removed.getValue();
-			}
-		}
-		else if(b != null && b.m_next == a)
-		{
-			Node removed = a;
-			if(b.m_next != null)
-				b.m_next = b.m_next.m_next;
-			b.unlock();
-			if(removed != null)
-			{
-				removed.unlock();
-				return removed.getValue();
-			}
-		}
-		return null;
-	}
-	
-	public V get(int pos)
+	public Node(V value)
 	{
-		startHOH();
-		
-		Node a = m_head;
-		Node b = null;
+	    this(value, null);
+	}
 
-		for (b = m_head.m_next; b != null && a != null && pos > 0; pos--)
-		{	
-			assert a.lock.isHeldByCurrentThread() &&
-				   b.lock.isHeldByCurrentThread();
-			
-			if(a.m_next == b)
-			{
-				a.unlock();
-				a = b.m_next;
-				if(a != null)
-					a.lock();
-			}
-			else if(b.m_next == a && a != null)
-			{
-				b.unlock();
-				b = a.m_next;
-				if(b != null)
-					b.lock();
-			}
-		}
-		
-		if(a != null && a.m_next == b)
-		{
-			a.unlock();
-			if(b != null)
-			{
-				b.unlock();
-				return b.getValue();
-			}
-		}
-		else if(b != null && b.m_next == a)
-		{
-			b.unlock();
-			if(a != null)
-			{
-				a.unlock();
-				return a.getValue();
-			}
-		}
-		
-		return null;
-	}
-	
-	public int size()
+	public V getValue()
 	{
-		startHOH();
-		
-		int size = 0;
-		Node a = m_head;
-		Node b = null;
+	    return m_value;
+	}
 
-		for (b = m_head.m_next; b != null && a != null; size++)
-		{	
-			assert a.lock.isHeldByCurrentThread() &&
-				   b.lock.isHeldByCurrentThread();
-			
-			if(a.m_next == b)
-			{
-				a.unlock();
-				a = b.m_next;
-				if(a != null)
-					a.lock();
-			}
-			else if(b.m_next == a && a != null)
-			{
-				b.unlock();
-				b = a.m_next;
-				if(b != null)
-					b.lock();
-			}
-		}
-		
-		return size;
-	}
-	
-	/**
-	 * Corrigir este método 'iterator()' para se tornar consistente
-	 * num ambiente concorrente!
-	 */
-	public Iterator<V> iterator()
+	public void setNext(Node next)
 	{
-		startHOH();
-		return new Iterator<V>() {
-			
-			private Node curr = m_head.m_next;
-			
-			public boolean hasNext() {
-				return curr != null;
-			}
-			public V next() {
-				
-				V ret = curr.m_value;
-				curr = curr.m_next;
-				return ret;
-			}
-		};
+	    m_next = next;
 	}
+
+	public Node getNext()
+	{
+	    return m_next;
+	}
+    }
+
+    private Node m_head;
+
+    public LinkedList()
+    {
+	m_head = null;
+	rwl = new ReentrantReadWriteLock();
+	readLock = rwl.readLock();
+	writeLock = rwl.writeLock();
+    }
+
+    public void add(V value)
+    {
+	writeLock.lock();
+	try
+	{
+	    m_head = new Node(value, m_head);
+	}
+	finally { writeLock.unlock(); }
+    }
+
+    public void add(int pos, V value)
+    {
+
+	if (pos == 0)
+	{
+	    add(value);
+	    return;
+	}
+
+	Node n = null;
+	Node f = null;
+
+	writeLock.lock();
+	try
+	{
+	    for (n = m_head; n != null && pos > 0; n = n.m_next)
+	    {
+		f = n;
+		pos--;
+	    }
+
+	    Node newNode = new Node(value, f.m_next);
+	    f.m_next = newNode;
+    	}
+    	finally { writeLock.unlock(); }
+    }
+
+    public V remove(int pos)
+    {
+	V res = null;
+
+	Node f = null;
+	Node n = null;
+
+	writeLock.lock();
+	try
+	{
+	    for (n = m_head; n != null && pos > 0; n = n.m_next)
+	    {
+		f = n;
+		pos--;
+	    }
+
+	    if (n != null)
+	    {
+		res = n.m_value;
+		if (f != null)
+		{
+		    f.m_next = n.m_next;
+		} else
+		{
+		    m_head = n.m_next;
+		}
+	    }
+	}
+	finally { writeLock.unlock(); }
+
+	return res;
+    }
+
+    public V get(int pos)
+    {
+	V res = null;
+	Node n = null;
 	
-	public String toString() {
-		StringBuffer sb = new StringBuffer("[");
-		
-		Iterator<V> it = this.iterator();
-		
-		if (it.hasNext()) {
-			sb.append(it.next());
-		}
-		
-		while(it.hasNext()) {
-			sb.append(", "+it.next());
-		}
-		
-		sb.append("]");
-		
-		return sb.toString();
+	readLock.lock();
+	try
+	{
+	    for (n = m_head; n != null && pos > 0; n = n.m_next)
+	    {
+		pos--;
+	    }
+	    if (n != null)
+	    {
+		res = n.m_value;
+	    }
 	}
+	finally { readLock.unlock(); }
+	return res;
+    }
+
+    public int size()
+    {
+	int res = 0;
+	
+	readLock.lock();
+	try
+	{
+	    for (Node n = m_head; n != null; n = n.m_next)
+	    {
+		res++;
+	    }
+	}
+	finally { readLock.unlock(); }
+	
+	return res;
+    }
+
+    public Iterator<V> iterator()
+    {
+	return new Iterator<V>()
+	{
+
+	    private Node curr = m_head;
+
+	    public boolean hasNext()
+	    {
+		return curr != null;
+	    }
+
+	    public V next()
+	    {
+		V ret = curr.m_value;
+		curr = curr.m_next;
+		return ret;
+	    }
+	};
+    }
+
+    public String toString()
+    {
+	StringBuffer sb = new StringBuffer("[");
+
+	Iterator<V> it = this.iterator();
+
+	if (it.hasNext())
+	{
+	    sb.append(it.next());
+	}
+
+	while (it.hasNext())
+	{
+	    sb.append(", " + it.next());
+	}
+
+	sb.append("]");
+
+	return sb.toString();
+    }
 }
