@@ -31,49 +31,64 @@ public class Repository
 	if (byArticleId.contains(a.getId()))
 	    return false;
 
-	Iterator<String> authors = a.getAuthors().iterator();
-	while (authors.hasNext())
-	{
-	    String name = authors.next();
+        byArticleId.getLockItem(a.getId(),0);
 
-	    List<Article> ll = byAuthor.get(name);
-	    if (ll == null)
-	    {
-		ll = new LinkedList<Article>();
-		byAuthor.put(name, ll);
-	    }
-	    ((LinkedList<Article>) ll).writeLock.lock();
-	    ll.add(a);
-	    ((LinkedList<Article>) ll).writeLock.unlock();
-	}
+        Iterator<String> authors = a.getAuthors().iterator();
+        while (authors.hasNext())
+        {
+            String name = authors.next();
 
-	Iterator<String> keywords = a.getKeywords().iterator();
-	while (keywords.hasNext())
-	{
-	    String keyword = keywords.next();
+            byAuthor.getLockItem(name,0);
 
-	    List<Article> ll = byKeyword.get(keyword);
-	    if (ll == null)
-	    {
-		ll = new LinkedList<Article>();
-		byKeyword.put(keyword, ll);
-	    }
-	    ((LinkedList<Article>) ll).writeLock.lock();
-	    ll.add(a);
-	    ((LinkedList<Article>) ll).writeLock.unlock();
-	}
+            List<Article> ll = byAuthor.get(name);
+            if (ll == null)
+            {
+                ll = new LinkedList<Article>();
+                byAuthor.put(name, ll);
+            }
+            //((LinkedList<Article>) ll).writeLock.lock();
+            ll.add(a);
+            //((LinkedList<Article>) ll).writeLock.unlock();
+            byAuthor.releaseLockItem(name,0);
+        }
 
-	byArticleId.put(a.getId(), a);
+        Iterator<String> keywords = a.getKeywords().iterator();
+        while (keywords.hasNext())
+        {
+            String keyword = keywords.next();
+            byKeyword.getLockItem(keyword,0);
+            List<Article> ll = byKeyword.get(keyword);
+            if (ll == null)
+            {
+                ll = new LinkedList<Article>();
+                byKeyword.put(keyword, ll);
+            }
+            //((LinkedList<Article>) ll).writeLock.lock();
+            ll.add(a);
+            //((LinkedList<Article>) ll).writeLock.unlock();
+            byKeyword.releaseLockItem(keyword,0);
+        }
 
-	return true;
+
+        byArticleId.put(a.getId(), a);
+        byArticleId.releaseLockItem(a.getId(),0);
+
+        return true;
+
     }
 
     public void removeArticle(int id)
     {
+
+    //byArticleId.getReadLock(id);
 	Article a = byArticleId.get(id);
+    //byArticleId.releaseReadLock(id);
+
 
 	if (a == null)
 	    return;
+
+    byArticleId.getLockItem(a.getId(),0);
 
 	byArticleId.remove(id);
 
@@ -81,12 +96,12 @@ public class Repository
 	while (keywords.hasNext())
 	{
 	    String keyword = keywords.next();
-
+        byKeyword.getLockItem(keyword,0);
 	    List<Article> ll = byKeyword.get(keyword);
 	    if (ll != null)
 	    {
 		int pos = 0;
-		((LinkedList<Article>) ll).writeLock.lock();
+		//((LinkedList<Article>) ll).writeLock.lock();
 		Iterator<Article> it = ll.iterator();
 		while (it.hasNext())
 		{
@@ -98,28 +113,29 @@ public class Repository
 		    pos++;
 		}
 		ll.remove(pos);
-		((LinkedList<Article>) ll).writeLock.unlock();
-		((LinkedList<Article>) ll).readLock.lock();
+		//((LinkedList<Article>) ll).writeLock.unlock();
+		//((LinkedList<Article>) ll).readLock.lock();
 		it = ll.iterator();
 		if (!it.hasNext())
 		{ // checks if the list is empty
 		    byKeyword.remove(keyword);
 		}
-		((LinkedList<Article>) ll).readLock.unlock();
+		//((LinkedList<Article>) ll).readLock.unlock();
 	    }
+        byKeyword.releaseLockItem(keyword,0);
 	}
 
 	Iterator<String> authors = a.getAuthors().iterator();
 	while (authors.hasNext())
 	{
 	    String name = authors.next();
-
+        byAuthor.getLockItem(name,0);
 	    List<Article> ll = byAuthor.get(name);
 	    if (ll != null)
 	    {
 		int pos = 0;
 		Iterator<Article> it = ll.iterator();
-		((LinkedList<Article>) ll).writeLock.lock();
+		//((LinkedList<Article>) ll).writeLock.lock();
 		while (it.hasNext())
 		{
 		    Article toRem = it.next();
@@ -130,16 +146,18 @@ public class Repository
 		    pos++;
 		}
 		ll.remove(pos);
-		((LinkedList<Article>) ll).writeLock.unlock();
-		((LinkedList<Article>) ll).readLock.lock();
+		//((LinkedList<Article>) ll).writeLock.unlock();
+		//((LinkedList<Article>) ll).readLock.lock();
 		it = ll.iterator();
 		if (!it.hasNext())
 		{ // checks if the list is empty
 		    byAuthor.remove(name);
 		}
-		((LinkedList<Article>) ll).readLock.unlock();
+		//((LinkedList<Article>) ll).readLock.unlock();
 	    }
+        byAuthor.releaseLockItem(name,0);
 	}
+        byArticleId.releaseLockItem(a.getId(),0);
     }
 
     public List<Article> findArticleByAuthor(List<String> authors)
@@ -156,7 +174,7 @@ public class Repository
 		Iterator<Article> ait = as.iterator();
 		
 		// reading from hashtable. Must... Lock... List!
-		((LinkedList<Article>) as).readLock.lock();
+		//((LinkedList<Article>) as).readLock.lock();
 		try
 		{
 		    while (ait.hasNext())
@@ -165,7 +183,7 @@ public class Repository
 			res.add(a);
 		    }
 		}
-		finally { ((LinkedList<Article>) as).readLock.unlock(); }
+		finally { /*((LinkedList<Article>) as).readLock.unlock();*/ }
 	    }
 	}
 
@@ -185,7 +203,7 @@ public class Repository
 	    if (as != null)
 	    {
 		// reading from hashtable. Must... Lock... List!
-		((LinkedList<Article>) as).readLock.lock();
+		//((LinkedList<Article>) as).readLock.lock();
 		try
 		{
 		    Iterator<Article> ait = as.iterator();
@@ -195,7 +213,7 @@ public class Repository
 			res.add(a);
 		    }
 		}
-		finally { ((LinkedList<Article>) as).readLock.unlock(); }
+		finally { /*((LinkedList<Article>) as).readLock.unlock(); */}
 	    }
 
 	}
@@ -255,7 +273,7 @@ public class Repository
 	{
 	    Iterator<Article> it = ll.iterator();
 	    
-	    ((LinkedList<Article>) ll).readLock.lock();
+	    //((LinkedList<Article>) ll).readLock.lock();
 	    try
 	    {
 		while (it.hasNext())
@@ -265,7 +283,7 @@ public class Repository
 			return true;
 		    }
 		}
-	    } finally { ((LinkedList<Article>) ll).readLock.unlock(); }
+	    } finally { /*((LinkedList<Article>) ll).readLock.unlock();*/ }
 	}
 	return false;
     }
@@ -277,7 +295,7 @@ public class Repository
 	{
 	    Iterator<Article> it = ll.iterator();
 	    
-	    ((LinkedList<Article>) ll).readLock.lock();
+	    //((LinkedList<Article>) ll).readLock.lock();
 	    try
 	    {
 		while (it.hasNext())
@@ -287,7 +305,7 @@ public class Repository
 			return true;
 		    }
 		}
-	    } finally { ((LinkedList<Article>) ll).readLock.unlock(); }
+	    } finally { /*((LinkedList<Article>) ll).readLock.unlock();*/ }
 	}
 	return false;
     }

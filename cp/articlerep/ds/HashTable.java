@@ -1,10 +1,18 @@
 package cp.articlerep.ds;
 
+import java.util.ArrayList;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+
 /**
  * @author Ricardo Dias
  */
 public class HashTable<K extends Comparable<K>, V> implements Map<K, V>
 {
+
+     ReentrantLock[] Locks;
 
     private static class Node
     {
@@ -24,12 +32,38 @@ public class HashTable<K extends Comparable<K>, V> implements Map<K, V>
 
     public HashTable()
     {
-	this(1000);
+	    this(1000);
+        Locks = new ReentrantLock[1000];
     }
 
     public HashTable(int size)
     {
-	this.table = new Node[size];
+	    this.table = new Node[size];
+        Locks = new ReentrantLock[size];
+    }
+
+    private ReentrantLock lockItem (K key, int id){
+        int pos;
+        if (key == null){
+            pos = id ;
+        } else {
+            pos = this.calcTablePos(key);
+        }
+        ReentrantLock rwl;
+        rwl = Locks[pos];
+        if (rwl == null){
+            rwl = new ReentrantLock();
+            Locks[pos] = rwl;
+        }
+        return rwl;
+    }
+
+    public void getLockItem(K key, int id){
+        lockItem(key,id).lock();
+    }
+
+    public void releaseLockItem(K key, int id){
+        lockItem(key,id).unlock();
     }
 
     private int calcTablePos(K key)
@@ -39,29 +73,26 @@ public class HashTable<K extends Comparable<K>, V> implements Map<K, V>
 
     @SuppressWarnings("unchecked")
     @Override
-    public V put(K key, V value)
-    {
-	int pos = this.calcTablePos(key);
-	Node n = this.table[pos];
+    public V put(K key, V value) {
+        int pos = this.calcTablePos(key);
 
-	while (n != null && !n.key.equals(key))
-	{
-	    n = n.next;
-	}
+        Node n = this.table[pos];
 
-	if (n != null)
-	{
-	    V oldValue = (V) n.value;
-	    n.value = value;
-	    return oldValue;
-	}
+        while (n != null && !n.key.equals(key)) {
+            n = n.next;
+        }
 
-	Node nn = new Node(key, value, this.table[pos]);
-	this.table[pos] = nn;
+        if (n != null) {
+            V oldValue = (V) n.value;
+            n.value = value;
+            return oldValue;
+        }
 
-	return null;
+        Node nn = new Node(key, value, this.table[pos]);
+        this.table[pos] = nn;
+
+        return null;
     }
-
     @SuppressWarnings("unchecked")
     @Override
     public V remove(K key)
