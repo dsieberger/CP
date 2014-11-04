@@ -13,9 +13,9 @@ public interface Map<K extends Comparable<K>, V>
 
     public V get(K key);
 
-    public void getLockItem(K key, int id);
+    public void getLockItem(K key);
 
-    public void releaseLockItem(K key, int id);
+    public void releaseLockItem(K key);
 
     public Iterator<V> values();
 

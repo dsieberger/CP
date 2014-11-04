@@ -42,13 +42,8 @@ public class HashTable<K extends Comparable<K>, V> implements Map<K, V>
         Locks = new ReentrantLock[size];
     }
 
-    private ReentrantLock lockItem (K key, int id){
-        int pos;
-        if (key == null){
-            pos = id ;
-        } else {
-            pos = this.calcTablePos(key);
-        }
+    private ReentrantLock lockItem (K key){
+        int pos = this.calcTablePos(key);
         ReentrantLock rwl;
         rwl = Locks[pos];
         if (rwl == null){
@@ -58,12 +53,16 @@ public class HashTable<K extends Comparable<K>, V> implements Map<K, V>
         return rwl;
     }
 
-    public void getLockItem(K key, int id){
-        lockItem(key,id).lock();
+    public void getLockItem(K key){
+        ReentrantLock r = lockItem(key);
+        r.lock();
     }
 
-    public void releaseLockItem(K key, int id){
-        lockItem(key,id).unlock();
+    public void releaseLockItem(K key){
+        ReentrantLock r = lockItem(key);
+        if (r.isLocked())
+            r.unlock();
+
     }
 
     private int calcTablePos(K key)

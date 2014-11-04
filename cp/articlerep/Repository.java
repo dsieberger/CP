@@ -27,19 +27,18 @@ public class Repository
 
     public boolean insertArticle(Article a)
     {
-
 	if (byArticleId.contains(a.getId()))
 	    return false;
 
-        byArticleId.getLockItem(a.getId(),0);
+        byArticleId.getLockItem(a.getId());
 
         Iterator<String> authors = a.getAuthors().iterator();
         while (authors.hasNext())
         {
             String name = authors.next();
 
-            byAuthor.getLockItem(name,0);
-
+            byAuthor.getLockItem(name);
+            try{
             List<Article> ll = byAuthor.get(name);
             if (ll == null)
             {
@@ -49,14 +48,24 @@ public class Repository
             //((LinkedList<Article>) ll).writeLock.lock();
             ll.add(a);
             //((LinkedList<Article>) ll).writeLock.unlock();
-            byAuthor.releaseLockItem(name,0);
+            }
+            finally {
+                try{
+                    byAuthor.releaseLockItem(name);
+                } catch (Exception e){
+                    e.printStackTrace();
+                }
+
+            }
+
         }
 
         Iterator<String> keywords = a.getKeywords().iterator();
         while (keywords.hasNext())
         {
             String keyword = keywords.next();
-            byKeyword.getLockItem(keyword,0);
+            byKeyword.getLockItem(keyword);
+            try{
             List<Article> ll = byKeyword.get(keyword);
             if (ll == null)
             {
@@ -66,12 +75,15 @@ public class Repository
             //((LinkedList<Article>) ll).writeLock.lock();
             ll.add(a);
             //((LinkedList<Article>) ll).writeLock.unlock();
-            byKeyword.releaseLockItem(keyword,0);
+            } finally {
+                byKeyword.releaseLockItem(keyword);
+            }
+
         }
 
 
         byArticleId.put(a.getId(), a);
-        byArticleId.releaseLockItem(a.getId(),0);
+        byArticleId.releaseLockItem(a.getId());
 
         return true;
 
@@ -88,7 +100,7 @@ public class Repository
 	if (a == null)
 	    return;
 
-    byArticleId.getLockItem(a.getId(),0);
+    byArticleId.getLockItem(a.getId());
 
 	byArticleId.remove(id);
 
@@ -96,7 +108,8 @@ public class Repository
 	while (keywords.hasNext())
 	{
 	    String keyword = keywords.next();
-        byKeyword.getLockItem(keyword,0);
+        byKeyword.getLockItem(keyword);
+        try{
 	    List<Article> ll = byKeyword.get(keyword);
 	    if (ll != null)
 	    {
@@ -122,14 +135,18 @@ public class Repository
 		}
 		//((LinkedList<Article>) ll).readLock.unlock();
 	    }
-        byKeyword.releaseLockItem(keyword,0);
+        } finally {
+            byKeyword.releaseLockItem(keyword);
+        }
+
 	}
 
 	Iterator<String> authors = a.getAuthors().iterator();
 	while (authors.hasNext())
 	{
 	    String name = authors.next();
-        byAuthor.getLockItem(name,0);
+        byAuthor.getLockItem(name);
+        try{
 	    List<Article> ll = byAuthor.get(name);
 	    if (ll != null)
 	    {
@@ -155,9 +172,12 @@ public class Repository
 		}
 		//((LinkedList<Article>) ll).readLock.unlock();
 	    }
-        byAuthor.releaseLockItem(name,0);
+        } finally {
+            byAuthor.releaseLockItem(name);
+        }
+
 	}
-        byArticleId.releaseLockItem(a.getId(),0);
+        byArticleId.releaseLockItem(a.getId());
     }
 
     public List<Article> findArticleByAuthor(List<String> authors)
