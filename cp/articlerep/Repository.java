@@ -29,61 +29,59 @@ public class Repository
     {
 	if (byArticleId.contains(a.getId()))
 	    return false;
+        try {
+            byArticleId.getWriteLockItem(a.getId());
 
-        byArticleId.getLockItem(a.getId());
+            Iterator<String> authors = a.getAuthors().iterator();
+            while (authors.hasNext()) {
+                String name = authors.next();
 
-        Iterator<String> authors = a.getAuthors().iterator();
-        while (authors.hasNext())
-        {
-            String name = authors.next();
+                byAuthor.getWriteLockItem(name);
+                try {
+                    List<Article> ll = byAuthor.get(name);
+                    if (ll == null) {
+                        ll = new LinkedList<Article>();
+                        byAuthor.put(name, ll);
+                    }
+                    //((LinkedList<Article>) ll).writeLock.lock();
+                    ll.add(a);
+                    //((LinkedList<Article>) ll).writeLock.unlock();
+                } finally {
+                    try {
+                        byAuthor.releaseWriteLockItem(name);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
 
-            byAuthor.getLockItem(name);
-            try{
-            List<Article> ll = byAuthor.get(name);
-            if (ll == null)
-            {
-                ll = new LinkedList<Article>();
-                byAuthor.put(name, ll);
-            }
-            //((LinkedList<Article>) ll).writeLock.lock();
-            ll.add(a);
-            //((LinkedList<Article>) ll).writeLock.unlock();
-            }
-            finally {
-                try{
-                    byAuthor.releaseLockItem(name);
-                } catch (Exception e){
-                    e.printStackTrace();
                 }
 
             }
 
-        }
+            Iterator<String> keywords = a.getKeywords().iterator();
+            while (keywords.hasNext()) {
+                String keyword = keywords.next();
+                byKeyword.getWriteLockItem(keyword);
+                try {
+                    List<Article> ll = byKeyword.get(keyword);
+                    if (ll == null) {
+                        ll = new LinkedList<Article>();
+                        byKeyword.put(keyword, ll);
+                    }
+                    //((LinkedList<Article>) ll).writeLock.lock();
+                    ll.add(a);
+                    //((LinkedList<Article>) ll).writeLock.unlock();
+                } finally {
+                    byKeyword.releaseWriteLockItem(keyword);
+                }
 
-        Iterator<String> keywords = a.getKeywords().iterator();
-        while (keywords.hasNext())
-        {
-            String keyword = keywords.next();
-            byKeyword.getLockItem(keyword);
-            try{
-            List<Article> ll = byKeyword.get(keyword);
-            if (ll == null)
-            {
-                ll = new LinkedList<Article>();
-                byKeyword.put(keyword, ll);
-            }
-            //((LinkedList<Article>) ll).writeLock.lock();
-            ll.add(a);
-            //((LinkedList<Article>) ll).writeLock.unlock();
-            } finally {
-                byKeyword.releaseLockItem(keyword);
             }
 
+
+            byArticleId.put(a.getId(), a);
+        } finally {
+            byArticleId.releaseWriteLockItem(a.getId());
         }
 
-
-        byArticleId.put(a.getId(), a);
-        byArticleId.releaseLockItem(a.getId());
 
         return true;
 
@@ -92,23 +90,22 @@ public class Repository
     public void removeArticle(int id)
     {
 
-    //byArticleId.getReadLock(id);
 	Article a = byArticleId.get(id);
-    //byArticleId.releaseReadLock(id);
 
 
 	if (a == null)
 	    return;
 
-    byArticleId.getLockItem(a.getId());
+    byArticleId.getWriteLockItem(a.getId());
 
+    try{
 	byArticleId.remove(id);
 
 	Iterator<String> keywords = a.getKeywords().iterator();
 	while (keywords.hasNext())
 	{
 	    String keyword = keywords.next();
-        byKeyword.getLockItem(keyword);
+        byKeyword.getWriteLockItem(keyword);
         try{
 	    List<Article> ll = byKeyword.get(keyword);
 	    if (ll != null)
@@ -136,7 +133,7 @@ public class Repository
 		//((LinkedList<Article>) ll).readLock.unlock();
 	    }
         } finally {
-            byKeyword.releaseLockItem(keyword);
+            byKeyword.releaseWriteLockItem(keyword);
         }
 
 	}
@@ -145,7 +142,7 @@ public class Repository
 	while (authors.hasNext())
 	{
 	    String name = authors.next();
-        byAuthor.getLockItem(name);
+        byAuthor.getWriteLockItem(name);
         try{
 	    List<Article> ll = byAuthor.get(name);
 	    if (ll != null)
@@ -173,11 +170,14 @@ public class Repository
 		//((LinkedList<Article>) ll).readLock.unlock();
 	    }
         } finally {
-            byAuthor.releaseLockItem(name);
+            byAuthor.releaseWriteLockItem(name);
         }
 
 	}
-        byArticleId.releaseLockItem(a.getId());
+    } finally {
+        byArticleId.releaseWriteLockItem(a.getId());
+    }
+
     }
 
     public List<Article> findArticleByAuthor(List<String> authors)
@@ -187,7 +187,10 @@ public class Repository
 	Iterator<String> it = authors.iterator();
 	while (it.hasNext())
 	{
-	    String name = it.next();
+		String name = it.next();
+	    byAuthor.getReadLockItem(name);
+		try{
+			
 	    List<Article> as = byAuthor.get(name);
 	    if (as != null)
 	    {
@@ -205,6 +208,9 @@ public class Repository
 		}
 		finally { /*((LinkedList<Article>) as).readLock.unlock();*/ }
 	    }
+		} finally {
+			byAuthor.releaseReadLockItem(name);
+		}
 	}
 
 	return res;
@@ -218,6 +224,8 @@ public class Repository
 	while (it.hasNext())
 	{
 	    String keyword = it.next();
+	    byKeyword.getReadLockItem(keyword);
+	    try{
 	    List<Article> as = byKeyword.get(keyword);
 	    
 	    if (as != null)
@@ -235,7 +243,9 @@ public class Repository
 		}
 		finally { /*((LinkedList<Article>) as).readLock.unlock(); */}
 	    }
-
+	    } finally {
+	    	byKeyword.releaseReadLockItem(keyword);
+	    }
 	}
 
 	return res;

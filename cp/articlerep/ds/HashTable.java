@@ -12,7 +12,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 public class HashTable<K extends Comparable<K>, V> implements Map<K, V>
 {
 
-     ReentrantLock[] Locks;
+     ReentrantReadWriteLock[] Locks;
 
     private static class Node
     {
@@ -33,37 +33,46 @@ public class HashTable<K extends Comparable<K>, V> implements Map<K, V>
     public HashTable()
     {
 	    this(1000);
-        Locks = new ReentrantLock[1000];
+        Locks = new ReentrantReadWriteLock[1000];
     }
 
     public HashTable(int size)
     {
 	    this.table = new Node[size];
-        Locks = new ReentrantLock[size];
+        Locks = new ReentrantReadWriteLock[size];
     }
 
-    private ReentrantLock lockItem (K key){
+    private synchronized ReentrantReadWriteLock lockItem (K key){
         int pos = this.calcTablePos(key);
-        ReentrantLock rwl;
+        ReentrantReadWriteLock rwl;
         rwl = Locks[pos];
         if (rwl == null){
-            rwl = new ReentrantLock();
+            rwl = new ReentrantReadWriteLock();
             Locks[pos] = rwl;
         }
         return rwl;
     }
 
-    public void getLockItem(K key){
-        ReentrantLock r = lockItem(key);
-        r.lock();
+    public void getWriteLockItem(K key){
+        ReentrantReadWriteLock r = lockItem(key);
+        r.writeLock().lock();
     }
-
-    public void releaseLockItem(K key){
-        ReentrantLock r = lockItem(key);
-        if (r.isLocked())
-            r.unlock();
-
+    
+    public void getReadLockItem(K key){
+    	ReentrantReadWriteLock r = lockItem(key);
+        r.readLock().lock();
     }
+    
+    public void releaseWriteLockItem(K key){
+        ReentrantReadWriteLock r = lockItem(key);
+        r.writeLock().unlock();
+    }
+    
+    public void releaseReadLockItem(K key){
+    	ReentrantReadWriteLock r = lockItem(key);
+        r.readLock().unlock();
+    }
+    
 
     private int calcTablePos(K key)
     {
