@@ -47,12 +47,7 @@ public class Repository
                     ll.add(a);
                     //((LinkedList<Article>) ll).writeLock.unlock();
                 } finally {
-                    try {
                         byAuthor.releaseWriteLockItem(name);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-
                 }
 
             }
@@ -290,8 +285,34 @@ public class Repository
 		{
 		    return false;
 		}
-	    }
+	    }    
+	    
 	}
+	
+	// Check if there aren't any phantom articles left in the keywords
+//    Iterator<List<Article>> KeyVals = byKeyword.values();
+//    while (KeyVals.hasNext()){
+//        List<Article> artList = KeyVals.next();
+//        for (int i = 0; i < artList.size(); i++){
+//            if (!byArticleId.contains(artList.get(i).getId())){
+//                System.out.println("Phantom article detected keyword");
+//                return false;
+//            }
+//        }
+//    }
+
+    // Check if there aren't any phantom articles left in the authors
+//    Iterator<List<Article>> authVals = byAuthor.values();
+//    while (authVals.hasNext()){
+//        List<Article> artList = authVals.next();
+//        for (int i = 0; i < artList.size(); i++){
+//            if (!byArticleId.contains(artList.get(i).getId())){
+//                System.out.println("Phantom article detected author");
+//                return false;
+//            }
+//        }
+//    }
+	
 
 	return articleCount == articleIds.size();
     }
@@ -303,9 +324,6 @@ public class Repository
 	{
 	    Iterator<Article> it = ll.iterator();
 	    
-	    //((LinkedList<Article>) ll).readLock.lock();
-	    try
-	    {
 		while (it.hasNext())
 		{
 		    if (it.next() == a)
@@ -313,21 +331,18 @@ public class Repository
 			return true;
 		    }
 		}
-	    } finally { /*((LinkedList<Article>) ll).readLock.unlock();*/ }
 	}
 	return false;
     }
 
     private boolean searchKeywordArticle(Article a, String keyword)
     {
+    
 	List<Article> ll = byKeyword.get(keyword);
 	if (ll != null)
 	{
 	    Iterator<Article> it = ll.iterator();
 	    
-	    //((LinkedList<Article>) ll).readLock.lock();
-	    try
-	    {
 		while (it.hasNext())
 		{
 		    if (it.next() == a)
@@ -335,7 +350,6 @@ public class Repository
 			return true;
 		    }
 		}
-	    } finally { /*((LinkedList<Article>) ll).readLock.unlock();*/ }
 	}
 	return false;
     }
